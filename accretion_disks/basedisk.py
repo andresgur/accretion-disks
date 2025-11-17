@@ -1,21 +1,21 @@
 from abc import ABC, abstractmethod
-from constants import M_suncgs, k_T, ccgs
+from .constants import M_suncgs, k_T, ccgs
 import numpy as np
 from math import pi
 
 
 class Disk(ABC):
-    def __init__(self, CO, mdot, alpha=0.1, name="disk", Rmin=1, Rmax=500, N=1000):
+    def __init__(self, CO, mdot, alpha=0.1, name="disk", Rmin=1, Rmax=500, N=20000):
         self.CO = CO
         self.mdot = mdot
         self.alpha = alpha
-        self.Mdot_0 = self.CO.eddington_accretion_rate(CO.Risco) * self.mdot
+        self.Mdot_0 = self.CO.Medd * self.mdot
         self.name = name
         print("Disk %s with M = %.1f M_sun, dot(m) = %.1f and alpha = %.1f and spin = %.1f" % (self.name, self.CO.M / M_suncgs,
                       self.mdot, self.alpha, self.CO.a))
         self.Rmin = Rmin
         self.Rmax = Rmax
-        self.R = np.linspace(self.Rmin * self.CO.Rg, self.Rmax * self.CO.Rg, N=1000)
+        self.R = np.linspace(self.Rmin, self.Rmax, N) * self.CO.Risco
         self.Omega = self.CO.omega(self.R)
 
   
