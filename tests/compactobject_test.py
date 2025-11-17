@@ -1,5 +1,5 @@
 import unittest
-from accretion_disks.constants import Gcgs, ccgs, M_suncgs
+from accretion_disks.constants import M_suncgs
 from accretion_disks.compact_object import CompactObject
 
 class TestCompactObject(unittest.TestCase):
