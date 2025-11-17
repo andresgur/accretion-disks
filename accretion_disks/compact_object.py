@@ -1,7 +1,7 @@
-from constants import Gcgs, ccgs, M_suncgs, m_pcgs, sigma_Tcgs
+from .constants import Gcgs, ccgs, M_suncgs, m_pcgs, sigma_Tcgs
 from math import pi
 from astropy.units import Quantity
-class CO():
+class CompactObject():
     """Base compact object class"""
     
     def __init__(self, M:  float, a: float =0):
@@ -13,15 +13,8 @@ class CO():
         a: float
             Dimensionless spin of the compact object: 0 for a Scharzschild black hole or 0.998 for a Kerr black hole.
         """
-        if M.isinstance(Quantity):
-            self.M = M.to('g').value
-        else:
-            # by default we assume solar masses
-            self.M = M * M_suncgs
-        
-        
+        self.M = M
         self.a = a
-        self._update_mass()        
 
     @property
     def M(self):
@@ -41,18 +34,20 @@ class CO():
 
     @M.setter
     def M(self, value):
-        self._M = value
+        if isinstance(value, Quantity):
+            self._M = value.to('g').value
+        else:
+            # by default we assume solar masses
+            self._M = float(value) * M_suncgs
         self._update_mass()
 
     def _update_mass(self):
         self.Rg = self.gravitational_radius()
-        self.Risco = self.isco_radius()
-        eff = self.accretion_efficiency(self.Risco)
         self.LEdd = self.eddington_luminosity()
-        self.Medd = self.LEdd / ccgs**2 / eff
+        
     
     def _update_spin(self):
-        self.Risco = self.isco_radius()
+        self.Risco = self.isco_radius() * self.Rg
         eff = self.accretion_efficiency(self.Risco)
         self.Medd = self.LEdd / ccgs**2 / eff
     
@@ -72,17 +67,17 @@ class CO():
 
         Returns the gravitational radius in cm
         """
-        return (Gcgs * self.M/ ccgs**2.)
+        return Gcgs * self.M/ ccgs**2.
     
 
     def isco_radius(self, )-> float:
-        """Returns the ISCO radius for a given mass in cm.
-        Returns the radius of the inner most stable orbit in cm
+        """Returns the ISCO radius for a given mass in units of Rg.
+        Returns the radius of the inner most stable orbit in units of Rg
         """
         z1 = 1 + (1 - self.a**2.) ** (1/3) * ((1 + self.a)** (1/3) + (1-self.a) ** (1/3))
         z2 = (3. * self.a ** 2. + z1**2)**0.5
         # this implements the +- sign of a
-        return (3. + z2 - self.a * ( (3 - z1) * (3 + z1 + 2 * z2))**0.5 ) * self.Rg
+        return (3. + z2 - self.a * ( (3 - z1) * (3 + z1 + 2 * z2))**0.5 ) 
     
 
     def eddington_luminosity(self, )-> float:
@@ -108,7 +103,7 @@ class CO():
             Returns the Eddington accretion rate in quantity
         """
         efficiency = self.accretion_efficiency(R_in)
-        return self.eddington_luminosity / efficiency / ccgs**2.
+        return self.LEdd / efficiency / ccgs**2.
     
 
     def accretion_efficiency(self, R: float)-> float:
@@ -122,9 +117,15 @@ class CO():
 
 
     def omega(self, R:float):
-        """Calulate the Keplerian angular velocity at a given radius
-        In cgs
-        R: float,
+        """Calulate the Keplerian angular velocity at a given radius in cgs units
+
+        Parameters
+        ----------
+        R: float or array-like,
             Radius at which to calculate the velocity in cm
+
+        Returns
+        -------
+        Returns the Keplerian angular velocity in rad/s
         """
         return (Gcgs* self.M /  R**3) **0.5
