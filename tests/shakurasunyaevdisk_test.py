@@ -20,5 +20,14 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
         Q = - 3./4. * disk.Omega * disk.Wrphi
         np.testing.assert_allclose(disk.Qrad / disk.Qrad, Q / disk.Qrad, rtol=1e-5)
 
+
+    def testLuminosity(self):
+        blackhole = CompactObject(M=10, a=0)
+        for mdot in np.arange(0.1, 0.9, 0.1):
+            disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1)
+            disk.solve()
+            L = 4 * np.pi * np.sum(disk.Qrad * disk.R) * (disk.R[1] - disk.R[0])
+            self.assertAlmostEqual(L / blackhole.LEdd, mdot, delta=0.05)
+
 if __name__ == '__main__':
     unittest.main()
