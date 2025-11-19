@@ -18,6 +18,12 @@ class TestCompactObject(unittest.TestCase):
         Risco_expected = 1  # in units of Rg for a=0
         self.assertAlmostEqual(co.Risco / co.Rg, Risco_expected)
 
+    def test_efficiency(self):
+        co = CompactObject(M=10, a=0)
+        eff = co.accretion_efficiency(co.Risco)
+        self.assertAlmostEqual(1/12 , eff, places=0)
+
+
     def test_eddington_luminosity(self):
         M = 10
         co = CompactObject(M=M, a=0)
