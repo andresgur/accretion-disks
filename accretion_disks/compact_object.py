@@ -49,7 +49,7 @@ class CompactObject():
     def _update_spin(self):
         self.Risco = self.isco_radius() * self.Rg
         eff = self.accretion_efficiency(self.Risco)
-        self.Medd = self.LEdd / ccgs**2 / eff
+        self.MEdd = self.LEdd / ccgs**2. / eff
     
     def __str__(self):
         return (f"Compact Object (CO):\n"
@@ -77,7 +77,7 @@ class CompactObject():
         z1 = 1 + (1 - self.a**2.) ** (1/3) * ((1 + self.a)** (1/3) + (1-self.a) ** (1/3))
         z2 = (3. * self.a ** 2. + z1**2)**0.5
         # this implements the +- sign of a
-        return (3. + z2 - self.a * ( (3 - z1) * (3 + z1 + 2 * z2))**0.5 ) 
+        return 3. + z2 - self.a * ( (3 - z1) * (3 + z1 + 2 * z2))**0.5
     
 
     def eddington_luminosity(self, )-> float:
@@ -88,7 +88,8 @@ class CompactObject():
                 Mass in solar units
             Returns the Eddington luminosity in erg/s (cgs)
         """
-        return 4 * pi * Gcgs * self.M * m_pcgs * ccgs / sigma_Tcgs
+        kappa = sigma_Tcgs / m_pcgs  # cm^2/g
+        return 4. * pi * Gcgs * self.M * ccgs /  kappa
     
 
     def eddington_accretion_rate(self, R_in: float) -> float:
