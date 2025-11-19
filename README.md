@@ -10,3 +10,18 @@ The code can be used to retrieve quantities of interest for observers such as th
 
 The pdf in the docs folder shows the derivation of the final Equations that go into the solver.
 
+## Installation
+
+### Git Clone
+To clone the repository, run the following command:
+```bash
+git clone https://github.com/andresgur/accretion-disks .
+```
+
+### Pip Install
+Navigate to the cloned directory and install the package using pip:
+```bash
+cd accretion-disks
+pip install .
+```
+
