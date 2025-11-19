@@ -54,12 +54,11 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
 
     def testScaleHeight(self):
         blackhole = CompactObject(M=10, a=0)
-        mdot = 10
-        disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=50000, Rmax=100000)
-        disk.solve()
-
-        H = self.scale_height(disk, disk.Mdot_0)
-        np.testing.assert_allclose(disk.H[1:] / H[1:], np.ones_like(disk.H[1:]), rtol=1e-2, atol=1e-2)
+        for mdot in np.arange(0.1, 0.9, 0.5):
+            disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=50000, Rmax=100000)
+            disk.solve()
+            H = self.scale_height(disk, disk.Mdot_0)
+            np.testing.assert_allclose(disk.H[1:] / H[1:], np.ones_like(disk.H[1:]), rtol=1e-2, atol=1e-2)
 
 
 if __name__ == '__main__':
