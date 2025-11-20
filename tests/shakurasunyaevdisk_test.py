@@ -48,7 +48,7 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
         for mdot in np.arange(0.1, 0.9, 0.1):
             disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1)
             disk.solve()
-            L = 4 * np.pi * np.sum(disk.Qrad * disk.R) * (disk.R[1] - disk.R[0])
+            L = disk.L()
             self.assertAlmostEqual(L / blackhole.LEdd, mdot, delta=0.05)
 
 
