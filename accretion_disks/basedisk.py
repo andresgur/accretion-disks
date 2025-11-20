@@ -2,26 +2,28 @@ from abc import ABC, abstractmethod
 from .constants import M_suncgs, k_T, ccgs
 import numpy as np
 from math import pi
+import matplotlib.pyplot as plt
 
 
 class Disk(ABC):
-    def __init__(self, CO, mdot, alpha=0.1, name="disk", Rmin=1, Rmax=500, N=20000):
+    def __init__(self, CO, mdot, alpha=0.1, name="disk", Rmin=1, Rmax=1e4, N=20000):
         self.CO = CO
         self.mdot = mdot
         self.alpha = alpha
         self.Mdot_0 = self.CO.MEdd * self.mdot
         self.name = name
-        print("Disk %s with M = %.1f M_sun, dot(m) = %.1f and alpha = %.1f and spin = %.1f and N = %d datapoints" % (self.name, self.CO.M / M_suncgs,
-                      self.mdot, self.alpha, self.CO.a, N))
         self.Rmin = Rmin
         self.Rmax = Rmax
+        if self.Rmin >= self.Rmax:
+            raise ValueError("Rmin must be smaller than Rmax")
         self.R = np.linspace(self.Rmin, self.Rmax, N) * self.CO.Risco
         self.N = N
+        print("Disk %s with M = %.1f M_sun, dot(m) = %.1f and alpha = %.1f and spin = %.1f and N = %d datapoints" % (self.name, self.CO.M / M_suncgs,
+                      self.mdot, self.alpha, self.CO.a, self.N))
         self.Omega = self.CO.omega(self.R)
         self.Mdot = self.Mdot_0 * np.ones(self.N)
 
-
-  
+    
     def density(self, Wrphi, H):
         """The sign must be flipped to get positive density
         Parameters
@@ -83,6 +85,33 @@ class Disk(ABC):
     @abstractmethod
     def solve():
         pass
+
+
+    def plot(self,):
+        deltaR = self.R[1] - self.R[0]
+        lum_cumsum = 4 * np.pi * deltaR * np.cumsum(self.Qrad * self.R)
+        # For each R, get the cumulative luminosity for R > R[i]
+        lums = lum_cumsum[-1] - lum_cumsum
+
+        fig, axes = plt.subplots(2, sharex=True)
+        axes[0].set_xscale("log")
+        axes[0].plot(self.R / self.CO.Risco, self.H / self.R, label="H / R")
+        axes[0].plot(self.R / self.CO.Risco, lums / self.CO.LEdd, label="$L(r > R)$", ls="--")
+        axes[0].plot(self.R / self.CO.Risco, self.Mdot / self.Mdot_0, label="$\dot{M}(r) / \dot{M}_0$", ls=":")
+        if hasattr(self, 'Rsph'):
+            for ax in axes:
+                ax.axvline(self.Rsph / self.CO.Risco, color="black", ls="--", label="Rsph")
+        for ax in axes:
+            ax.legend()
+        axes[0].set_ylim(bottom=0)
+
+        axes[1].plot(self.R / self.CO.Risco, -self.Wrphi, label=r"$W_\mathrm{r\phi}$")
+        axes[1].set_yscale("log")
+        axes[0].set_xlim(self.Rmin, self.Rmax)
+        axes[-1].set_xlabel("$R / R_{isco}$")
+        return fig, axes
+    
+
 class NonAdvectiveDisk(Disk):
     """Base class for non-advective disks
     """
@@ -104,3 +133,4 @@ class NonAdvectiveDisk(Disk):
         H = - 0.75 * k_T * Wrphi / (self.Omega * ccgs)
         
         return H
+    
