@@ -1,12 +1,13 @@
 from .basedisk import NonAdvectiveDisk
 from math import pi
-from .constants import A
+import numpy as np
 
 class ShakuraSunyaevDisk(NonAdvectiveDisk):
 
-    def __init__(self, *args, name="Shakura-Sunyaev Disk", Wrphi_in=0., **kwargs):
+    def __init__(self, *args, name="Shakura-Sunyaev Disk", **kwargs):
         super().__init__(*args, name=name, **kwargs)
-        self.Wrphi_in = Wrphi_in    
+        self.Mdot = self.Mdot_0 * np.ones(self.N)
+
 
     def torque(self, R):
         """Analytical expression for the torque when Mass loss is conserved
@@ -28,4 +29,4 @@ class ShakuraSunyaevDisk(NonAdvectiveDisk):
         self.rho = self.density(self.Wrphi, self.H)
         self.vr = self.v_r(self.Mdot_0, self.H, self.rho, self.R)
         self.P = self.pressure(self.H, self.rho)
-        self.T = (3 * self.P / A)** (1/4)
+        self.T = self.temperature(self.P)
