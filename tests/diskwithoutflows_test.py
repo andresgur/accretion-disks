@@ -1,8 +1,7 @@
 import unittest
-from accretion_disks.diskwithoutflows import CompositeDisk, InnerDiskODE, InnerDisk, DiskWithOutflowsRemove
+from accretion_disks.diskwithoutflows import CompositeDisk, InnerDiskODE, InnerDisk
 from accretion_disks.shakurasunyaevdisk import ShakuraSunyaevDisk
 from accretion_disks.compact_object import CompactObject
-from accretion_disks.constants import Gcgs
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -11,7 +10,7 @@ class TestDiskWithOutflows(unittest.TestCase):
         blackhole = CompactObject(M=10, a=0)
         mdot = 100
         for diskclass in [InnerDiskODE, InnerDisk]:
-            disk = diskclass(blackhole, mdot=mdot, alpha=0.1, Rmax=1.62 * mdot, )
+            disk = diskclass(blackhole, mdot=mdot, alpha=0.1, Rmax=1.62 * mdot, N=10000)
             disk.solve()
             ss73 = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, Rmax=10000, Rmin=1.62 * mdot, Wrphi_in=-disk.Wrphi[-1])
             ss73.solve()
@@ -33,7 +32,7 @@ class TestDiskWithOutflows(unittest.TestCase):
         blackhole = CompactObject(M=10, a=0)
         mdot = 1000
         for diskclass in [InnerDisk, InnerDiskODE]:
-            disk = CompositeDisk(diskclass, ShakuraSunyaevDisk, blackhole, mdot=mdot, N=50000, Rmax=1e5)
+            disk = CompositeDisk(diskclass, ShakuraSunyaevDisk, blackhole, mdot=mdot, N=10000, Rmax=1e5)
             disk.solve()
             L = disk.L(Rmin = disk.Rsph)
             self.assertAlmostEqual(L / blackhole.LEdd, 1, delta=0.1, msg="L(R > Rsph) does not mach the Eddington luminosity!")
@@ -47,7 +46,7 @@ class TestDiskWithOutflows(unittest.TestCase):
         mdot =10
         blackhole = CompactObject(M=10, a=0)
         for diskclass in [InnerDisk, InnerDiskODE]:
-            disk = CompositeDisk(diskclass, ShakuraSunyaevDisk, blackhole, mdot=mdot, Rmax=1e5, N=50000)
+            disk = CompositeDisk(diskclass, ShakuraSunyaevDisk, blackhole, mdot=mdot, Rmax=1e5, N=10000)
             disk.solve()
             Q = - 3./4. * disk.Omega * disk.Wrphi
             np.testing.assert_allclose(disk.Qrad / disk.Qrad, Q / disk.Qrad, rtol=1e-10)
