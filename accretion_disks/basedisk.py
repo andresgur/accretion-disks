@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
-from .constants import M_suncgs, k_T, ccgs
+from .constants import M_suncgs, k_T, ccgs, A
 import numpy as np
 from math import pi
 import matplotlib.pyplot as plt
 
 
 class Disk(ABC):
-    def __init__(self, CO, mdot, alpha=0.1, name="disk", Rmin=1, Rmax=1e4, N=20000):
+    def __init__(self, CO, mdot, alpha=0.1, name="disk", Rmin=1, Rmax=1e4, N=20000, Wrphi_in=0):
         self.CO = CO
         self.mdot = mdot
         self.alpha = alpha
@@ -18,17 +18,19 @@ class Disk(ABC):
             raise ValueError("Rmin must be smaller than Rmax")
         self.R = np.linspace(self.Rmin, self.Rmax, N) * self.CO.Risco
         self.N = N
-        print("Disk %s with M = %.1f M_sun, dot(m) = %.1f and alpha = %.1f and spin = %.1f and N = %d datapoints" % (self.name, self.CO.M / M_suncgs,
-                      self.mdot, self.alpha, self.CO.a, self.N))
         self.Omega = self.CO.omega(self.R)
-        self.Mdot = self.Mdot_0 * np.ones(self.N)
+        self.Wrphi_in = Wrphi_in    
+
+    def __repr__(self):
+        return "Disk %s with M = %.1f M_sun, dot(m) = %.1f and alpha = %.1f and spin = %.1f and N = %d datapoints" % (self.name, self.CO.M / M_suncgs,
+                      self.mdot, self.alpha, self.CO.a, self.N)
 
     
     def density(self, Wrphi, H):
         """The sign must be flipped to get positive density
         Parameters
         ----------
-        Wrphi: float
+        Wrphi: float or array-like
             The torque
         H: float
             Scale height
@@ -36,6 +38,17 @@ class Disk(ABC):
             Keplerian angular velocity
         """
         return -Wrphi / (2 * self.alpha * self.Omega**2. * H**3.)
+    
+    def temperature(self, P):
+        """
+        Parameters
+        ----------
+        P: float or array-like
+            The pressure at each radii in cgs units
+        
+        """
+        T = (3 * P / A)** (1/4)
+        return T
     
 
     def pressure(self, H, rho):
@@ -96,8 +109,8 @@ class Disk(ABC):
         fig, axes = plt.subplots(2, sharex=True)
         axes[0].set_xscale("log")
         axes[0].plot(self.R / self.CO.Risco, self.H / self.R, label="H / R")
-        axes[0].plot(self.R / self.CO.Risco, lums / self.CO.LEdd, label="$L(r > R)$", ls="--")
-        axes[0].plot(self.R / self.CO.Risco, self.Mdot / self.Mdot_0, label="$\dot{M}(r) / \dot{M}_0$", ls=":")
+        axes[0].plot(self.R / self.CO.Risco, lums / self.CO.LEdd, label=r"$L(r > R)$", ls="--")
+        axes[0].plot(self.R / self.CO.Risco, self.Mdot / self.Mdot_0, label=r"$\dot{M}(r) / \dot{M}_0$", ls=":")
         if hasattr(self, 'Rsph'):
             for ax in axes:
                 ax.axvline(self.Rsph / self.CO.Risco, color="black", ls="--", label="Rsph")
