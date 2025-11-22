@@ -1,4 +1,4 @@
-from .basedisk import NonAdvectiveDisk
+from .basedisk import NonAdvectiveDisk, Disk
 from .shakurasunyaevdisk import ShakuraSunyaevDisk
 from math import pi
 from scipy.integrate import solve_bvp
@@ -170,8 +170,11 @@ class CompositeDisk(NonAdvectiveDisk):
 
         outerdisk = self.outerDiskClass(self.CO, self.mdot, self.alpha, Rmax=self.Rmax, Rmin=self.Rmin, N=self.N, 
                                        name="Temporary SS Disk", Wrphi_in=0)
-        outerdisk.solve()
         L_Ra = outerdisk.L() - self.CO.LEdd
+        if L_Ra < 0:
+            raise ValueError("Outer disk is either too short (and Rsph extends beyond Rmax) or there are too few datapoints!" +
+                             "Increase the number of datapoints or the maximum radius of the calculation!")
+            
 
         for i in range(maxiter):
             R_c = (Ra + Rb) / 2.0
@@ -199,6 +202,33 @@ class CompositeDisk(NonAdvectiveDisk):
                 Ra = R_c
                 L_Ra = L_Rc
         return None
+
+    @Disk.mdot.setter
+    def mdot(self, value):
+        self._mdot = value
+        self.Mdot_0 = self.CO.MEdd * self.mdot
+        self.innerDisk.mdot = value
+        self.outerDisk.mdot = value
+        self.solve()
+
+    
+    @Disk.alpha.setter
+    def alpha(self, value):
+        self._alpha = value
+        self.innerDisk.alpha = value
+        self.outerDisk.alpha = value
+        self.solve()
+
+
+    @Disk.CO.setter
+    def CO(self, value):
+        self._CO = value
+        self.Omega = self.CO.omega(self.R)
+        self.Mdot_0 = self.CO.MEdd * self.mdot
+        self.innerDisk.CO = value
+        self.outerDisk.CO = value
+        self.solve()
+
     
     def solve(self):
 

@@ -6,11 +6,10 @@ import matplotlib.pyplot as plt
 
 
 class Disk(ABC):
-    def __init__(self, CO, mdot, alpha=0.1, name="disk", Rmin=1, Rmax=1e4, N=20000, Wrphi_in=0):
-        self.CO = CO
-        self.mdot = mdot
-        self.alpha = alpha
-        self.Mdot_0 = self.CO.MEdd * self.mdot
+    def __init__(self, CO, mdot, alpha=0.1, name="disk", Rmin=1, Rmax=1e5, N=20000, Wrphi_in=0):
+        self._CO = CO
+        self._mdot = mdot
+        self._alpha = alpha
         self.name = name
         self.Rmin = Rmin
         self.Rmax = Rmax
@@ -18,13 +17,44 @@ class Disk(ABC):
             raise ValueError("Rmin must be smaller than Rmax")
         self.R = np.linspace(self.Rmin, self.Rmax, N) * self.CO.Risco
         self.N = N
+        self.Mdot_0 = self.CO.MEdd * self.mdot
         self.Omega = self.CO.omega(self.R)
         self.Wrphi_in = Wrphi_in    
 
     def __repr__(self):
         return "Disk %s with M = %.1f M_sun, dot(m) = %.1f and alpha = %.1f and spin = %.1f and N = %d datapoints" % (self.name, self.CO.M / M_suncgs,
                       self.mdot, self.alpha, self.CO.a, self.N)
+    
+    @property
+    def mdot(self) -> float:
+        return self._mdot
 
+    @mdot.setter
+    def mdot(self, value: float):
+        self._mdot = value
+        self.Mdot_0 = self.CO.MEdd * self.mdot
+        self.solve()
+
+    @property
+    def alpha(self) ->float:
+        return self._alpha
+    
+    @alpha.setter
+    def alpha(self, value: float):
+        self._alpha = value
+        self.solve()
+
+    @property
+    def CO(self):
+        return self._CO
+
+    @CO.setter
+    def CO(self, value):
+        self._CO = value
+        self.Omega = self.CO.omega(self.R)
+        self.Mdot_0 = self.CO.MEdd * self.mdot
+        self.solve()
+    
     
     def density(self, Wrphi, H):
         """The sign must be flipped to get positive density
@@ -94,6 +124,8 @@ class Disk(ABC):
         R_range = (self.R >= Rmin) & (self.R <= Rmax)
         L = 4 * pi * (self.R[R_range] * self.Qrad[R_range]).sum() * deltaR
         return L
+    
+
 
     @abstractmethod
     def solve():
