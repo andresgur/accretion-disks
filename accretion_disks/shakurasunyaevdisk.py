@@ -27,6 +27,7 @@ class ShakuraSunyaevDisk(NonAdvectiveDisk):
         self.Wrphi = self.torque(self.R)
         self.H = self.height(self.Wrphi)
         self.Qrad = self.Q_rad(self.H)
+        self.Qvis = self.Q_vis(self.Wrphi)
         self.rho = self.density(self.Wrphi, self.H)
         self.vr = self.v_r(self.Mdot_0, self.H, self.rho, self.R)
         self.P = self.pressure(self.H, self.rho)

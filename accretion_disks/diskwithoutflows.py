@@ -239,6 +239,7 @@ class CompositeDisk(NonAdvectiveDisk):
         self.Wrphi = np.concatenate((self.innerDisk.Wrphi, self.outerDisk.Wrphi))
         self.H = self.height(self.Wrphi)
         self.Qrad = self.Q_rad(self.H)
+        self.Qvis = self.Q_vis(self.Wrphi)
         self.rho = self.density(self.Wrphi, self.H)
         self.vr = self.v_r(self.Mdot, self.H, self.rho, self.R)
         self.P = self.pressure(self.H, self.rho)

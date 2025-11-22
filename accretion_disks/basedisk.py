@@ -51,6 +51,7 @@ class Disk(ABC):
     @CO.setter
     def CO(self, value):
         self._CO = value
+        self.R = np.linspace(self.Rmin, self.Rmax, self.N) * self.CO.Risco
         self.Omega = self.CO.omega(self.R)
         self.Mdot_0 = self.CO.MEdd * self.mdot
         self.solve()
@@ -92,7 +93,8 @@ class Disk(ABC):
         """
         return self.Omega**2. * H**2 * rho
 
-
+    def Q_vis(self, Wrphi):
+        return -3/4 * self.Omega * Wrphi
     def Q_rad(self, H):
         """Radiative energy per unit surface. All quantities in cgs
         Parameters
