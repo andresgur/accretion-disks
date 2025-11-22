@@ -143,7 +143,7 @@ class CompositeDisk(NonAdvectiveDisk):
         self.innerDiskClass = innerDiskClass
         self.outerDiskClass = outerDiskClass
         self.ewind = ewind
-        self.Rsph = None
+        self.solve()
 
     
     def adjust_Rsph(self, maxiter=100, reltol=1e-4,):

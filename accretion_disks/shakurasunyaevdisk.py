@@ -6,7 +6,7 @@ class ShakuraSunyaevDisk(NonAdvectiveDisk):
 
     def __init__(self, *args, name="Shakura-Sunyaev Disk", **kwargs):
         super().__init__(*args, name=name, **kwargs)
-        self.Mdot = self.Mdot_0 * np.ones(self.N)
+        self.solve()
 
 
     def torque(self, R):
@@ -23,6 +23,7 @@ class ShakuraSunyaevDisk(NonAdvectiveDisk):
 
 
     def solve(self):
+        self.Mdot = self.Mdot_0 * np.ones(self.N)
         self.Wrphi = self.torque(self.R)
         self.H = self.height(self.Wrphi)
         self.Qrad = self.Q_rad(self.H)
