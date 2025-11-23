@@ -6,19 +6,27 @@ import matplotlib.pyplot as plt
 
 
 class Disk(ABC):
-    def __init__(self, CO, mdot, alpha=0.1, name="disk", Rmin=1, Rmax=1e5, N=20000, Wrphi_in=0):
+    def __init__(self, CO, mdot, alpha=0.1, name="disk", Rmin=1, Rmax=1e5, N=20000, Wrphi_in=-0.1):
         self._CO = CO
         self._mdot = mdot
+        if alpha>=1 or alpha <0:
+            raise ValueError("Alpha must be between 0 and 1!", f"alpha = {alpha:.2f}")
         self._alpha = alpha
         self.name = name
         self.Rmin = Rmin
         self.Rmax = Rmax
+        if self.Rmin <1:
+            raise ValueError("Rmin must be greater than 1!", f"Rmin = {Rmin:.1f}")
         if self.Rmin >= self.Rmax:
             raise ValueError("Rmin must be smaller than Rmax")
-        self.R = np.linspace(self.Rmin, self.Rmax, N) * self.CO.Risco
+        self.R = np.geomspace(self.Rmin, self.Rmax, N) * self.CO.Risco
         self.N = N
         self.Mdot_0 = self.CO.MEdd * self.mdot
         self.Omega = self.CO.omega(self.R)
+
+        if Wrphi_in >0:
+            raise ValueError("Torque is negatively defined! Inner torque must be of negative sign")
+        
         self.Wrphi_in = Wrphi_in    
 
     def __repr__(self):
@@ -41,8 +49,19 @@ class Disk(ABC):
     
     @alpha.setter
     def alpha(self, value: float):
+        """Alpha only affects disk structure quantities, so we do not need to recompute the energy balance equations"""
+        if value>=1 or value <0:
+            raise ValueError("Alpha must be between 0 and 1!", f"alpha = {alpha:.2f}")
+        oldalpha = self.alpha
         self._alpha = value
-        self.solve()
+        # rho is \propto 1 / \alpha
+        self.rho = self.rho * oldalpha / self._alpha
+        # vr is \propto 1 / rho -> \propto \alpha
+        self.vr = self.vr * self._alpha / oldalpha
+        # P is \propto \rho -> \propto 1 / \alpha
+        self.P = self.P * oldalpha / self._alpha
+        self.T = self.temperature(self.P)
+
 
     @property
     def CO(self):
@@ -51,7 +70,7 @@ class Disk(ABC):
     @CO.setter
     def CO(self, value):
         self._CO = value
-        self.R = np.linspace(self.Rmin, self.Rmax, self.N) * self.CO.Risco
+        self.R = np.geomspace(self.Rmin, self.Rmax, self.N) * self.CO.Risco
         self.Omega = self.CO.omega(self.R)
         self.Mdot_0 = self.CO.MEdd * self.mdot
         self.solve()
@@ -92,20 +111,7 @@ class Disk(ABC):
             Density
         """
         return self.Omega**2. * H**2 * rho
-
-    def Q_vis(self, Wrphi):
-        return -3/4 * self.Omega * Wrphi
-    def Q_rad(self, H):
-        """Radiative energy per unit surface. All quantities in cgs
-        Parameters
-        ----------
-        R: float
-            Radius
-        """
-        Qrad = H * self.Omega**2. *ccgs /k_T
-        return Qrad # checked
     
-
     def v_r(self, Mdot, H, rho, R):
         """Radial velocity. Equation 13 from Lipunova+1999
         Parameters
@@ -116,15 +122,42 @@ class Disk(ABC):
         """
         return Mdot / (rho * H * 4 * pi * R)
     
+
+    def Q_vis(self, Wrphi):
+        """Returns the viscosity or total energy release in per disk annuli at each radii
+        Parameters
+        ---------
+        Wrphi: float or array-like
+            The torque at each radii
+
+        Returns
+        ------
+        Qvis: float or array-like
+            The energy released
+        """
+        Qvis = -0.75 * self.Omega * Wrphi
+        return Qvis
+    
+    def Q_rad(self, H):
+        """Radiative energy per unit surface. All quantities in cgs
+        Parameters
+        ----------
+        R: float
+            Radius
+        """
+        Qrad = H * self.Omega**2. *ccgs /k_T
+        return Qrad # checked
+    
+    
     def L(self, Rmin=None, Rmax=None):
-        deltaR = self.R[1] - self.R[0]
+        deltaR = np.diff(self.R)
         if Rmin is None:
             Rmin = self.Rmin * self.CO.Risco
         if Rmax is None:
             Rmax = self.Rmax * self.CO.Risco
         # Fix: select radii between Rmin and Rmax
-        R_range = (self.R >= Rmin) & (self.R <= Rmax)
-        L = 4 * pi * (self.R[R_range] * self.Qrad[R_range]).sum() * deltaR
+        R_range = (self.R[1:] >= Rmin) & (self.R[1:] <= Rmax)
+        L = 4 * pi * (self.R[1:] * self.Qrad[1:] * deltaR)[R_range].sum()
         return L
     
 
@@ -135,27 +168,39 @@ class Disk(ABC):
 
 
     def plot(self,):
-        deltaR = self.R[1] - self.R[0]
-        lum_cumsum = 4 * np.pi * deltaR * np.cumsum(self.Qrad * self.R)
+        deltaR = np.diff(self.R)
+        lum_cumsum = 4. * np.pi *  np.cumsum(deltaR * self.Qrad[1:] * self.R[1:])
         # For each R, get the cumulative luminosity for R > R[i]
         lums = lum_cumsum[-1] - lum_cumsum
 
-        fig, axes = plt.subplots(2, sharex=True)
+        fig, axes = plt.subplots(5, sharex=True, figsize=(12, 8), gridspec_kw={"hspace":0.1})
         axes[0].set_xscale("log")
-        axes[0].plot(self.R / self.CO.Risco, self.H / self.R, label="H / R")
-        axes[0].plot(self.R / self.CO.Risco, lums / self.CO.LEdd, label=r"$L(r > R)$", ls="--")
-        axes[0].plot(self.R / self.CO.Risco, self.Mdot / self.Mdot_0, label=r"$\dot{M}(r) / \dot{M}_0$", ls=":")
-        if hasattr(self, 'Rsph'):
-            for ax in axes:
-                ax.axvline(self.Rsph / self.CO.Risco, color="black", ls="--", label="Rsph")
-        for ax in axes:
-            ax.legend()
+        axes[0].set_xlim(self.Rmin, self.Rmax)
+
+        r = self.R / self.CO.Risco
+        axes[0].plot(r, self.H / self.R, label="H / R")
+        axes[0].plot(r[1:], lums / self.CO.LEdd, label=r"$L(r > R)$", ls="--")
+        axes[0].plot(r, self.Mdot / self.Mdot_0, label=r"$\dot{M}(r) / \dot{M}_0$", ls=":")
+        axes[0].legend()
         axes[0].set_ylim(bottom=0)
 
-        axes[1].plot(self.R / self.CO.Risco, -self.Wrphi, label=r"$W_\mathrm{r\phi}$")
+        axes[1].plot(r, -self.Wrphi, label=r"$W_\mathrm{r\phi}$")
         axes[1].set_yscale("log")
-        axes[0].set_xlim(self.Rmin, self.Rmax)
-        axes[-1].set_xlabel("$R / R_{isco}$")
+        axes[1].set_ylabel(r"$W_\mathrm{r\phi}$")
+
+        axes[2].plot(r, self.Qrad / self.Qvis, label=r"$Q_\mathrm{rad}/ Q_\mathrm{vis}$")
+        axes[2].plot(r, self.Qadv / self.Qvis, label=r"$Q_\mathrm{adv}/ Q_\mathrm{vis}$")
+        axes[2].legend()
+
+        axes[3].plot(r[1:], self.rho[1:])
+        axes[3].set_ylabel(r"$\rho$ (g/cm$^3$)")
+        axes[3].set_yscale("log")
+
+
+        axes[4].plot(r, self.vr / ccgs)
+        axes[4].set_ylabel(r"$v/c$")
+
+        axes[-1].set_xlabel(r"$R / R_\mathrm{isco}$")
         return fig, axes
     
 
