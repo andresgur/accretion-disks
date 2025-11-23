@@ -42,7 +42,7 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
     def testLuminosityPropTomdot(self):
         blackhole = CompactObject(M=10, a=0)
         for mdot in np.arange(0.1, 0.9, 0.1):
-            disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=200000)
+            disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=50000)
             L = disk.L()
             self.assertAlmostEqual(L / blackhole.LEdd, mdot, delta=0.05, msg="Error luminosity is not proportional to mdot!")
 
@@ -66,17 +66,30 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
         L = disk.L()
         self.assertAlmostEqual(L / blackhole.LEdd, newmdot, delta=0.05, msg="Error luminosity is not proportional to mdot!")
 
-    def testmdotsetter(self):
+    def testAlphaRaises(self):
+        blackhole = CompactObject(M=10, a=0)
+        with self.assertRaises(ValueError):
+            # negative alpha
+            ShakuraSunyaevDisk(blackhole, mdot=10, alpha=-1, )
+            # rmin > rmax
+            ShakuraSunyaevDisk(blackhole, mdot=0.1, alpha=0.1, Rmin=10, Rmax=5)
+            # rmin < 1
+            ShakuraSunyaevDisk(blackhole, mdot=0.1, alpha=0.1, Rmin=0.1, Rmax=5)
+            # Wrphi >0
+            ShakuraSunyaevDisk(blackhole, mdot=0.1, alpha=0.1, Rmin=0.1, Rmax=5, Wrphi_in=1)
 
+
+    def testalphasetter(self):
         blackhole = CompactObject(M=10, a=0)
         mdot = 0.5
         disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=200000)
-        L = disk.L()
-        self.assertAlmostEqual(L / blackhole.LEdd, mdot, delta=0.05, msg="Error luminosity is not proportional to mdot!")
-        newmdot = 0.2
-        disk.mdot = newmdot
-        L = disk.L()
-        self.assertAlmostEqual(L / blackhole.LEdd, newmdot, delta=0.05, msg="Error luminosity is not proportional to mdot!")
+        rho = disk.rho
+        P = disk.P
+        T = disk.T
+        disk.alpha = 0.2
+        self.assertTrue(np.all(rho> disk.rho))
+        self.assertTrue(np.all(P> disk.P))
+        self.assertTrue(np.all(T > disk.T))
 
 if __name__ == '__main__':
     unittest.main()
