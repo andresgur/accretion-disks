@@ -8,12 +8,11 @@ class ShakuraSunyaevDisk(NonAdvectiveDisk):
         super().__init__(*args, name=name, **kwargs)
         self.solve()
 
-
     def torque(self, R):
         """Analytical expression for the torque when Mass loss is conserved
         """
         Rmin = self.Rmin * self.CO.Risco
-        return -(self.Mdot_0 * self.Omega / (2. * pi) * (1 - (Rmin / R)**0.5) + self.Wrphi_in * (Rmin / R)**2.)
+        return -(self.Mdot_0 * self.Omega / (2. * pi) * (1 - (Rmin / R)**0.5) - self.Wrphi_in * (Rmin / R)**2.)
     
 
     def torque_derivative(self, R):
