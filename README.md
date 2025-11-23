@@ -25,3 +25,45 @@ cd accretion-disks
 pip install .
 ```
 
+## Usage
+See the notebook in docs/examples.ipynb
+
+```python
+from accretion_disks.shakurasunyaevdisk import ShakuraSunyaevDisk
+from accretion_disks.diskwithoutflows import CompositeDisk
+from accretion_disks.compact_object import CompactObject
+import numpy as np
+
+# Define a 10 solar mass black hole with a spin parameter a=0.5
+co = CompactObject(10, a=0.5)
+
+
+## Standard shakura and Sunyeave disk (only Zona A i.e. radiation pressure dominated)
+disk_SS73 = ShakuraSunyaevDisk(CO=co, mdot=0.1, alpha=0.1, N=10000)
+
+# Plot the disk properties (e.g., H/R, Qrad, etc.)
+fig, axes = disk_SS73.plot()
+
+# Retrieve the total disk luminosity
+print(f"Total disk luminosity {disk_SS73.L() / co.LEdd:.2f} LEdd")
+# Output: Maximum energy released occurs at 2.25 with H/R = 0.22
+# Total disk luminosity 0.50 LEdd
+
+## Disk with Outflows
+superEdd_disk = CompositeDisk(CO=co, mdot=1000, alpha=0.1, N=10000)
+
+# Plot the disk properties
+fig, axes = superEdd_disk.plot()
+print(f"Rsph = {superEdd_disk.Rsph / superEdd_disk.CO.Risco:.1f} x mdot")
+# Output: Rsph = 1619.0 x mdot
+
+# Retrieve properties like the maximum energy release radius and total luminosity
+maxQ = np.argmax(superEdd_disk.Qrad * superEdd_disk.R**2)
+print("Maximum energy released occurs at", f"{superEdd_disk.R[maxQ] / superEdd_disk.CO.Risco:.2f}", f"with H/R = {superEdd_disk.H[maxQ]/superEdd_disk.R[maxQ]:.2f}")
+# Output: Maximum energy released occurs at 1619.28 with H/R = 0.62
+
+
+print(f"Total disk luminosity {superEdd_disk.L() / co.LEdd:.2f} LEdd")
+# Output: Total disk luminosity 5.31 LEdd
+
+```
