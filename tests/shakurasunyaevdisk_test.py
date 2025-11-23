@@ -2,10 +2,8 @@ import unittest
 from accretion_disks.shakurasunyaevdisk import ShakuraSunyaevDisk
 from accretion_disks.compact_object import CompactObject
 import numpy as np
-import matplotlib.pyplot as plt
 
 class TestShakuraSunyaevDisk(unittest.TestCase):
-
 
 
     def scale_height(self, disk, Mr):
@@ -25,20 +23,18 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
         Rs = 2 * disk.CO.Rg
         efficiency = disk.CO.accretion_efficiency(R0)
         m_r = Mr / disk.CO.MEdd
-        H = Rs * m_r * 3 / 4 / efficiency * (1 - np.sqrt(R0/ disk.R))
+        H = Rs * m_r * 3 / 4 / efficiency * (1 - (R0/ disk.R)**0.5)
         return H
 
     def testMaxQ2(self):
         blackhole = CompactObject(M=10, a=0)
-        disk = ShakuraSunyaevDisk(blackhole, mdot=0.1, alpha=0.1)
-        disk.solve()
+        disk = ShakuraSunyaevDisk(blackhole, mdot=0.1, alpha=0.1, Rmax=1e4, N=1000000)
         max_Qr2 = np.argmax(disk.Qrad * disk.R**2)
         self.assertAlmostEqual(disk.R[max_Qr2] / blackhole.Risco, 2.25, delta=0.1)
 
     def testEnergyConserved(self):
         blackhole = CompactObject(M=10, a=0)
         disk = ShakuraSunyaevDisk(blackhole, mdot=0.1, alpha=0.1)
-        disk.solve()
         Q = - 3./4. * disk.Omega * disk.Wrphi
         np.testing.assert_allclose(disk.Qrad / disk.Qrad, Q / disk.Qrad, rtol=1e-5)
 
@@ -46,20 +42,54 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
     def testLuminosityPropTomdot(self):
         blackhole = CompactObject(M=10, a=0)
         for mdot in np.arange(0.1, 0.9, 0.1):
-            disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1)
-            disk.solve()
+            disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=50000)
             L = disk.L()
-            self.assertAlmostEqual(L / blackhole.LEdd, mdot, delta=0.05)
+            self.assertAlmostEqual(L / blackhole.LEdd, mdot, delta=0.05, msg="Error luminosity is not proportional to mdot!")
 
 
     def testScaleHeight(self):
         blackhole = CompactObject(M=10, a=0)
         for mdot in np.arange(0.1, 0.9, 0.5):
             disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, Rmax=100000)
-            disk.solve()
             H = self.scale_height(disk, disk.Mdot_0)
             np.testing.assert_allclose(disk.H[1:] / H[1:], np.ones_like(disk.H[1:]), rtol=1e-2, atol=1e-2)
 
+    def testmdotsetter(self):
+
+        blackhole = CompactObject(M=10, a=0)
+        mdot = 0.5
+        disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=200000)
+        L = disk.L()
+        self.assertAlmostEqual(L / blackhole.LEdd, mdot, delta=0.05, msg="Error luminosity is not proportional to mdot!")
+        newmdot = 0.2
+        disk.mdot = newmdot
+        L = disk.L()
+        self.assertAlmostEqual(L / blackhole.LEdd, newmdot, delta=0.05, msg="Error luminosity is not proportional to mdot!")
+
+    def testAlphaRaises(self):
+        blackhole = CompactObject(M=10, a=0)
+        with self.assertRaises(ValueError):
+            # negative alpha
+            ShakuraSunyaevDisk(blackhole, mdot=10, alpha=-1, )
+            # rmin > rmax
+            ShakuraSunyaevDisk(blackhole, mdot=0.1, alpha=0.1, Rmin=10, Rmax=5)
+            # rmin < 1
+            ShakuraSunyaevDisk(blackhole, mdot=0.1, alpha=0.1, Rmin=0.1, Rmax=5)
+            # Wrphi >0
+            ShakuraSunyaevDisk(blackhole, mdot=0.1, alpha=0.1, Rmin=0.1, Rmax=5, Wrphi_in=1)
+
+
+    def testalphasetter(self):
+        blackhole = CompactObject(M=10, a=0)
+        mdot = 0.5
+        disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=200000)
+        rho = disk.rho
+        P = disk.P
+        T = disk.T
+        disk.alpha = 0.2
+        self.assertTrue(np.all(rho> disk.rho))
+        self.assertTrue(np.all(P> disk.P))
+        self.assertTrue(np.all(T > disk.T))
 
 if __name__ == '__main__':
     unittest.main()
