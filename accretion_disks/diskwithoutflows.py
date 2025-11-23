@@ -28,6 +28,7 @@ class InnerDisk(NonAdvectiveDisk):
         # 3/2 = 1.5
         Rmin = self.Rmin * self.CO.Risco
         Wrphi = self.Mdot * self.Omega / (4. * np.pi) * (1. - (R / Rmin)**2.5) / (1. + 1.5 * (R / Rmin)**2.5)
+        Wrphi[0] = self.Wrphi_in
         return Wrphi
 
     
@@ -138,7 +139,7 @@ class CompositeDisk(NonAdvectiveDisk):
     """Base class for disks with different inner and outer solutions.
     Extends NonAdvectiveDisk, but requires innerDiskClass and optionally outerDiskClass (default: ShakuraSunyaevDisk).
     """
-    def __init__(self, innerDiskClass, outerDiskClass=ShakuraSunyaevDisk, *args, name="CompositeDisk", ewind=1, **kwargs):
+    def __init__(self, innerDiskClass=InnerDisk, outerDiskClass=ShakuraSunyaevDisk, *args, name="CompositeDisk", ewind=1, **kwargs):
         super().__init__(*args, name=name, **kwargs)
         self.innerDiskClass = innerDiskClass
         self.outerDiskClass = outerDiskClass
@@ -169,7 +170,7 @@ class CompositeDisk(NonAdvectiveDisk):
         Rb = self.R[-1] // self.CO.Risco
 
         outerdisk = self.outerDiskClass(self.CO, self.mdot, self.alpha, Rmax=self.Rmax, Rmin=self.Rmin, N=self.N, 
-                                       name="Temporary SS Disk", Wrphi_in=0)
+                                       name="Temporary SS Disk")
         L_Ra = outerdisk.L() - self.CO.LEdd
         if L_Ra < 0:
             raise ValueError("Outer disk is either too short (and Rsph extends beyond Rmax) or there are too few datapoints!" +
@@ -177,7 +178,7 @@ class CompositeDisk(NonAdvectiveDisk):
             
 
         for i in range(maxiter):
-            R_c = (Ra + Rb) / 2.0
+            R_c = (Ra + Rb) // 2.0
             Ninner = (self.R <= R_c * self.CO.Risco).sum()
             # reset the maximum radius
             innerDisk = self.innerDiskClass(self.CO, self.mdot, self.alpha, Rmin=self.Rmin, Rmax=R_c, N=Ninner, 
@@ -190,7 +191,7 @@ class CompositeDisk(NonAdvectiveDisk):
             # create truncated SS73 with new Wrphi boundary condition
             outerDisk = self.outerDiskClass(self.CO, self.mdot, self.alpha, Rmin=R_c,
                                            Rmax=self.Rmax, N=Nouter, name="Outer Disk", 
-                                           Wrphi_in=-innerDisk.Wrphi[-1])
+                                           Wrphi_in=innerDisk.Wrphi[-1])
             outerDisk.solve()
             L_Rc = outerDisk.L() - self.CO.LEdd
             err = abs(R_c - Ra)
@@ -217,7 +218,11 @@ class CompositeDisk(NonAdvectiveDisk):
         self._alpha = value
         self.innerDisk.alpha = value
         self.outerDisk.alpha = value
-        self.solve()
+        # recalculate only variables that depend on alpha
+        self.rho = np.concatenate((self.innerDisk.rho, self.outerDisk.rho))
+        self.vr = np.concatenate((self.innerDisk.vr, self.outerDisk.vr))
+        self.P = np.concatenate((self.innerDisk.P, self.outerDisk.P))
+        self.T = np.concatenate((self.innerDisk.T, self.outerDisk.T))
 
 
     @Disk.CO.setter
@@ -244,3 +249,11 @@ class CompositeDisk(NonAdvectiveDisk):
         self.vr = self.v_r(self.Mdot, self.H, self.rho, self.R)
         self.P = self.pressure(self.H, self.rho)
         self.T = self.temperature(self.P)
+
+    def plot(self):
+        fig, axes = super().plot()
+        for ax in axes:
+            ax.axvline(self.Rsph / self.CO.Risco, color="black", ls="--", label="Rsph")
+
+        axes[1].legend()
+        return fig, axes
