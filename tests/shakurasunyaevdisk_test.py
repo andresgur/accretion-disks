@@ -59,6 +59,17 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
                 disk.H[1:] / H[1:], np.ones_like(disk.H[1:]), rtol=1e-2, atol=1e-2
             )
 
+    def testTorqueDerivative(self):
+        blackhole = CompactObject(M=10, a=0)
+        disk = ShakuraSunyaevDisk(blackhole, mdot=0.5, alpha=0.1, Rmax=100000)
+
+        np.testing.assert_allclose(
+            disk.torque_derivative(disk.R) / np.gradient(disk.Wrphi, disk.R),
+            np.ones(disk.N),
+            rtol=1e-2,
+            err_msg="Derivative of the torque is not right!",
+        )
+
     def testmdotsetter(self):
 
         blackhole = CompactObject(M=10, a=0)
