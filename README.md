@@ -28,7 +28,7 @@ pip install .
 ## Usage
 See the notebook in docs/examples.ipynb
 
-``````python
+```python
 from accretion_disks.shakurasunyaevdisk import ShakuraSunyaevDisk
 from accretion_disks.diskwithoutflows import InnerDisk
 from accretion_disks.basedisk import CompositeDisk
