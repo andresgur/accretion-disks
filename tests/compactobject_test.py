@@ -1,6 +1,7 @@
 import unittest
 from accretion_disks.constants import M_suncgs
 from accretion_disks.compact_object import CompactObject
+import numpy as np
 
 class TestCompactObject(unittest.TestCase):
     def test_Mass_setter(self):
@@ -29,6 +30,14 @@ class TestCompactObject(unittest.TestCase):
         co = CompactObject(M=M, a=0)
         L_edd_expected = 1.26 * M  # in 10**38 erg/s (wikipedia)
         self.assertAlmostEqual(co.LEdd / 10**38, L_edd_expected, delta=0.1)
+
+    def test_omega_derivative(self):
+        M = 10
+        co = CompactObject(M=M, a=0)
+        R = np.arange(1, 10000, 0.1) * co.Risco
+        omega = co.omega(R)
+        domega = np.gradient(omega, R)
+        np.testing.assert_almost_equal(domega / (-3 /2 * omega / R), np.ones_like(R), decimal=1)
 
 
 if __name__ == '__main__':
