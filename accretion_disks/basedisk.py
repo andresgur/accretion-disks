@@ -15,8 +15,8 @@ class Disk(ABC):
             raise ValueError("Alpha must be between 0 and 1!", f"alpha = {alpha:.2f}")
         self._alpha = alpha
         self.name = name
-        self.Rmin = Rmin
-        self.Rmax = Rmax
+        self._Rmin = Rmin
+        self._Rmax = Rmax
         if self.Rmin < 1:
             raise ValueError("Rmin must be greater than 1!", f"Rmin = {Rmin:.1f}")
         if self.Rmin >= self.Rmax:
@@ -85,6 +85,34 @@ class Disk(ABC):
         self.R = np.geomspace(self.Rmin, self.Rmax, self.N) * self.CO.Risco
         self.Omega = self.CO.omega(self.R)
         self.Mdot_0 = self.CO.MEdd * self.mdot
+        self.solve()
+
+    @property
+    def Rmin(self):
+        return self._Rmin
+
+    @property
+    def Rmax(self):
+        return self._Rmax
+
+    @Rmin.setter
+    def Rmin(self, value):
+        if value >= self.Rmax:
+            raise ValueError("Rmin must be smaller than Rmax")
+
+        self._Rmin = value
+        self.R = np.geomspace(self.Rmin, self.Rmax, self.N) * self.CO.Risco
+        self.Omega = self.CO.omega(self.R)
+        self.solve()
+
+    @Rmax.setter
+    def Rmax(self, value):
+        if value < self.Rmin:
+            raise ValueError("Rmax must be larger than Rmin")
+
+        self._Rmax = value
+        self.R = np.geomspace(self.Rmin, self.Rmax, self.N) * self.CO.Risco
+        self.Omega = self.CO.omega(self.R)
         self.solve()
 
     def density(self, Wrphi, H):
@@ -203,7 +231,7 @@ class Disk(ABC):
             r, self.Qrad / self.Qvis, label=r"$Q_\mathrm{rad}/ Q_\mathrm{vis}$"
         )
         axes[2].plot(
-            r, self.Qadv / self.Qvis, label=r"$Q_\mathrm{adv}/ Q_\mathrm{vis}$"
+            r, self.Qadv / self.Qvis, label=r"$Q_\mathrm{adv}/ Q_\mathrm{vis}$", ls="--"
         )
         axes[2].legend()
 
@@ -321,6 +349,7 @@ class AdvectiveDisk(Disk):
     def Hprime_simplified(self, Mdot, H, R, Wrphi, dWrphi, w):
         """Derivative of the height of the disk. Everything in cgs units. Here rho has been replaced and
         the equations have been greatly simplified (mostly for speed purposes)
+        This is Equation 42 from the pdf
         Parameters
         ----------
         Mdot: float,
@@ -341,7 +370,7 @@ class AdvectiveDisk(Disk):
                 12 * H / R
                 - 3 * np.pi * R * Wrphi / (w * H * Mdot)
                 + H * dWrphi / Wrphi
-                - 4 * R * np.pi * ccgs / (Mdot * k_T)
+                + 4 * R * np.pi * ccgs / (Mdot * k_T)
             )
         )
 

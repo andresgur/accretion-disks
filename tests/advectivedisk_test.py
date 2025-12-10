@@ -1,5 +1,8 @@
 import unittest
-from accretion_disks.advectivedisk import ConservativeInnerDisk
+from accretion_disks.advectivedisk import (
+    ConservativeInnerDisk,
+    ConservativeInnerDiskODE,
+)
 from accretion_disks.shakurasunyaevdisk import ShakuraSunyaevDisk
 from accretion_disks.compact_object import CompactObject
 import numpy as np
@@ -34,25 +37,45 @@ class TestAdvectiveDisk(unittest.TestCase):
 
     def testEnergyConserved(self):
 
-        Wrphi_in = 0
-        Hin = (
-            -3 / 4 * Wrphi_in * k_T / ccgs / self.blackhole.omega(self.blackhole.Risco)
-        )
+        Wrphi = -1e15
+        Hin = 0.1 * self.blackhole.Risco
+        print("Hin", Hin)
+
+        # Hin = (
+        #   -3 / 4 * Wrphi_in * k_T / ccgs / self.blackhole.omega(self.blackhole.Risco)
+        # )
         # Hin = 500
-        Hin *= 0
-        print(Hin / self.blackhole.Risco)
-        disk = ConservativeInnerDisk(
+        # Hin *= 0
+        # print(Hin / self.blackhole.Risco)
+        disk = ConservativeInnerDiskODE(
             self.blackhole,
-            mdot=0.8,
-            Rmin=1.1,
+            mdot=0.4,
+            Rmin=1.01,
             alpha=0.1,
             H_in=Hin,
             N=50000,
-            Rmax=1e5,
-            Wrphi_in=Wrphi_in,
+            Rmax=1e4,
+            Wrphi_in=Wrphi,
         )
         print(disk)
-        disk.plot()
+        fig, axes = disk.plot()
+        axes[0].plot(
+            disk.R / disk.CO.Risco,
+            self.scale_height(disk, disk.Mdot_0),
+            label="SS733",
+            ls="--",
+            zorder=10,
+        )
+        axes[1].plot(
+            disk.R / disk.CO.Risco,
+            -disk.torque(disk.R),
+            label="SS733",
+            ls="--",
+            zorder=10,
+        )
+        axes[0].legend()
+        axes[1].legend()
+
         plt.show()
         np.testing.assert_allclose(
             np.ones(disk.N),
