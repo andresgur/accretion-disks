@@ -1,6 +1,7 @@
 import unittest
 from accretion_disks.shakurasunyaevdisk import ShakuraSunyaevDisk
 from accretion_disks.compact_object import CompactObject
+from accretion_disks.constants import Gcgs, ccgs, k_T
 import numpy as np
 
 
@@ -128,6 +129,45 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
         self.assertTrue(np.all(rho > disk.rho))
         self.assertTrue(np.all(P > disk.P))
         self.assertTrue(np.all(T > disk.T))
+
+    def test_hydrostatic_eq(self):
+
+        blackhole = CompactObject(M=10, a=0)
+        mdot = 0.5
+        disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=200000)
+        disk.solve()
+
+        leftside = disk.P / (disk.rho * disk.H)
+        rightside = Gcgs * blackhole.M * disk.H / disk.R**3
+
+        np.testing.assert_allclose(
+            leftside, rightside, err_msg="Disk is not in hydrostatic equilibrium!"
+        )
+
+    def test_mass_flux(self):
+
+        blackhole = CompactObject(M=10, a=0)
+        mdot = 0.5
+        disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=200000)
+        disk.solve()
+
+        leftside = disk.Mdot
+        rightside = 4 * np.pi * disk.R * disk.H * disk.rho * disk.vr
+        np.testing.assert_allclose(
+            leftside, rightside, err_msg="Disk does not conserve mass flux!"
+        )
+
+    def test_Qrad(self):
+        blackhole = CompactObject(M=10, a=0)
+        mdot = 0.5
+        disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=200000)
+        disk.solve()
+
+        leftside = disk.Qrad
+        rightside = disk.P * ccgs / k_T / disk.rho / disk.H
+        np.testing.assert_allclose(
+            leftside, rightside, err_msg="Disk Qrad is not preserved!"
+        )
 
 
 if __name__ == "__main__":
