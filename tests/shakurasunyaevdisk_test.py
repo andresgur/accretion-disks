@@ -1,7 +1,7 @@
 import unittest
 from accretion_disks.shakurasunyaevdisk import ShakuraSunyaevDisk
 from accretion_disks.compact_object import CompactObject
-from accretion_disks.constants import Gcgs, ccgs, k_T
+from accretion_disks.constants import Gcgs, ccgs, k_T, sigma_Tcgs, m_pcgs
 import numpy as np
 
 
@@ -27,15 +27,25 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
         H = 0.75 * Rs * m_r / efficiency * (1 - (R0 / disk.R) ** 0.5)
         return H
 
+    def scale_height_SS73(self, disk):
+        """Equation 2.8 from SS73 paper.
+        Note the missing 1 / mp in the original Equation"""
+        r = disk.R / disk.CO.Risco
+        H = 3.0 / 8.0 / np.pi * sigma_Tcgs / ccgs / m_pcgs * disk.Mdot_0 * (1 - r**-0.5)
+
+        return H
+
     def testMaxQ2(self):
         blackhole = CompactObject(M=10, a=0)
         disk = ShakuraSunyaevDisk(blackhole, mdot=0.1, alpha=0.1, Rmax=1e4, N=1000000)
+        disk.solve()
         max_Qr2 = np.argmax(disk.Qrad * disk.R**2)
         self.assertAlmostEqual(disk.R[max_Qr2] / blackhole.Risco, 2.25, delta=0.1)
 
     def testEnergyConserved(self):
         blackhole = CompactObject(M=10, a=0)
         disk = ShakuraSunyaevDisk(blackhole, mdot=0.1, alpha=0.1)
+        disk.solve()
         Q = -3.0 / 4.0 * disk.Omega * disk.Wrphi
         np.testing.assert_allclose(disk.Qrad / disk.Qrad, Q / disk.Qrad, rtol=1e-5)
 
@@ -43,6 +53,7 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
         blackhole = CompactObject(M=10, a=0)
         for mdot in np.arange(0.1, 0.9, 0.1):
             disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=50000)
+            disk.solve()
             L = disk.L()
             self.assertAlmostEqual(
                 L / blackhole.LEdd,
@@ -55,14 +66,20 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
         blackhole = CompactObject(M=10, a=0)
         for mdot in np.arange(0.1, 0.9, 0.5):
             disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, Rmax=100000)
+            disk.solve()
             H = self.scale_height(disk, disk.Mdot_0)
             np.testing.assert_allclose(
-                disk.H[1:] / H[1:], np.ones_like(disk.H[1:]), rtol=1e-2, atol=1e-2
+                disk.H[1:] / H[1:], np.ones_like(disk.H[1:]), rtol=1e-5, atol=1e-5
+            )
+            HSS73 = self.scale_height_SS73(disk)
+            np.testing.assert_allclose(
+                disk.H[1:] / HSS73[1:], np.ones_like(disk.H[1:]), rtol=1e-5, atol=1e-5
             )
 
     def testTorqueDerivative(self):
         blackhole = CompactObject(M=10, a=0)
         disk = ShakuraSunyaevDisk(blackhole, mdot=0.5, alpha=0.1, Rmax=100000)
+        disk.solve()
 
         np.testing.assert_allclose(
             disk.torque_derivative(disk.R) / np.gradient(disk.Wrphi, disk.R),
@@ -76,6 +93,7 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
         blackhole = CompactObject(M=10, a=0)
         mdot = 0.5
         disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=200000)
+        disk.solve()
         L = disk.L()
         self.assertAlmostEqual(
             L / blackhole.LEdd,
@@ -97,6 +115,7 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
         blackhole = CompactObject(M=10, a=0)
         mdot = 0.5
         disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=200000)
+        disk.solve()
         P = -disk.Wrphi / 2 / disk.H / disk.alpha
         np.testing.assert_allclose(P / disk.P, np.ones(disk.N), rtol=1e-2, atol=1e-3)
 
@@ -122,6 +141,7 @@ class TestShakuraSunyaevDisk(unittest.TestCase):
         blackhole = CompactObject(M=10, a=0)
         mdot = 0.5
         disk = ShakuraSunyaevDisk(blackhole, mdot=mdot, alpha=0.1, N=200000)
+        disk.solve()
         rho = disk.rho
         P = disk.P
         T = disk.T
