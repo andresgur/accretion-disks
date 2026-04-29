@@ -204,7 +204,15 @@ class Disk(ABC):
         self,
     ):
         deltaR = np.diff(self.R)
-        lum_cumsum = 4.0 * np.pi * np.cumsum(deltaR * self.Qrad[1:] * self.R[1:])
+        lum_cumsum = (
+            4.0
+            * np.pi
+            * np.cumsum(
+                deltaR
+                * 0.5
+                * (self.Qrad[1:] * self.R[1:] + self.Qrad[:-1] * self.R[:-1])
+            )
+        )
         # For each R, get the cumulative luminosity for R > R[i]
         lums = lum_cumsum[-1] - lum_cumsum
 
@@ -216,7 +224,7 @@ class Disk(ABC):
 
         r = self.R / self.CO.Risco
         axes[0].plot(r, self.H / self.R, label="H / R")
-        # axes[0].plot(r[1:], lums / self.CO.LEdd, label=r"$L(r > R)$", ls="--")
+        axes[0].plot(r[1:], lums / self.CO.LEdd, label=r"$L(r > R)$", ls="--")
         # axes[0].plot(
         #   r, self.Mdot / self.Mdot_0, label=r"$\dot{M}(r) / \dot{M}_0$", ls=":"
         # )
@@ -437,93 +445,13 @@ class CompositeDisk(Disk):
         self.innerDiskClass = innerDiskClass
         self.outerDiskClass = outerDiskClass
         self.ewind = ewind
-        self.solve()
 
     def adjust_Rsph(
         self,
         maxiter=100,
         reltol=1e-4,
     ):
-        """Calculate the spherization radius based on the radiative flux.
-
-        Parameters
-        ----------
-        maxiter: int, optional
-            Maximum number of iterations for the solver.
-        reltol: float, optional
-            Relative tolerance for convergence.
-
-        Returns
-        -------
-        float or None
-            The calculated spherization radius or None if not found.
-        innerDisk: InnerDisk
-            The solved inner disk object whithin Rsph
-        outerDisk: ShakuraSunyaevDisk
-            The solved outer disk object, which is a SS73 disk with modified boundary conditions.
-        """
-        Ra = self.R[0] // self.CO.Risco
-        Rb = self.R[-1] // self.CO.Risco
-
-        outerdisk = self.outerDiskClass(
-            self.CO,
-            self.mdot,
-            self.alpha,
-            Rmax=self.Rmax,
-            Rmin=self.Rmin,
-            N=self.N,
-            name="Temporary SS Disk",
-        )
-        L_Ra = outerdisk.L() - self.CO.LEdd
-        if L_Ra < 0:
-            raise ValueError(
-                "Outer disk is either too short (and Rsph extends beyond Rmax) or there are too few datapoints!"
-                + "Increase the number of datapoints or the maximum radius of the calculation!"
-            )
-
-        for i in range(maxiter):
-            R_c = (Ra + Rb) // 2.0
-            Ninner = (self.R <= R_c * self.CO.Risco).sum()
-            # reset the maximum radius
-            innerDisk = self.innerDiskClass(
-                self.CO,
-                self.mdot,
-                self.alpha,
-                Rmin=self.Rmin,
-                Rmax=R_c,
-                N=Ninner,
-                name="Inner Disk",
-                Wrphi_in=self.Wrphi_in,
-                ewind=self.ewind,
-            )
-            innerDisk.solve()
-            Nouter = self.N - Ninner
-            if Nouter == 0:
-                raise ValueError(
-                    "Run out of points in Rsph calculation. Increase the number of grid points!"
-                )
-            # create truncated SS73 with new Wrphi boundary condition
-            outerDisk = self.outerDiskClass(
-                self.CO,
-                self.mdot,
-                self.alpha,
-                Rmin=R_c,
-                Rmax=self.Rmax,
-                N=Nouter,
-                name="Outer Disk",
-                Wrphi_in=innerDisk.Wrphi[-1],
-            )
-            outerDisk.solve()
-            L_Rc = outerDisk.L() - self.CO.LEdd
-            err = abs(R_c - Ra)
-            if err / R_c < reltol or L_Rc == 0:
-                return R_c, innerDisk, outerDisk
-            if (L_Rc * L_Ra) < 0:
-                Rb = R_c
-            else:
-                Ra = R_c
-                L_Ra = L_Rc
-        return None
+        raise NotImplementedError("Child class should implement this method.")
 
     @Disk.mdot.setter
     def mdot(self, value):
@@ -554,9 +482,6 @@ class CompositeDisk(Disk):
         self.solve()
 
     def solve(self):
-
-        Rsph, self.innerDisk, self.outerDisk = self.adjust_Rsph()
-        self.Rsph = Rsph * self.CO.Risco
         # Combine solutions
         self.Mdot = np.concatenate((self.innerDisk.Mdot, self.outerDisk.Mdot))
         self.Wrphi = np.concatenate((self.innerDisk.Wrphi, self.outerDisk.Wrphi))
