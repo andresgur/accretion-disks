@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 class Disk(ABC):
     def __init__(
-        self, CO, mdot, alpha=0.1, name="disk", Rmin=1, Rmax=1e5, N=20000, Wrphi_in=-0.1
+        self, CO, mdot, alpha=0.1, name="disk", Rmin=1, Rmax=1e5, N=20000, Wrphi_in=0
     ):
         self._CO = CO
         self._mdot = mdot
