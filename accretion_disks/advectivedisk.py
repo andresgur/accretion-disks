@@ -1,12 +1,11 @@
 from accretion_disks.shakurasunyaevdisk import ShakuraSunyaevDisk
-
 from .basedisk import AdvectiveDisk, CompositeDisk
 from math import pi
 from scipy.integrate import solve_bvp
 import numpy as np
 
 
-class ConservativeDisk(AdvectiveDisk):
+class ConservativeAdvectiveInnerDisk(AdvectiveDisk):
     def __init__(self, *args, Hout, name="Inner Disk With Outflows", **kwargs):
         super().__init__(*args, name=name, **kwargs)
         self.Hout = Hout
@@ -29,9 +28,8 @@ class ConservativeDisk(AdvectiveDisk):
 
     def ode(self, x, y):
         R = x
-        H = (
-            y[0] * self.CO.Risco
-        )  # w solve H/Risco for numerical stability, so convert back to H here
+        # w solve H/Risco for numerical stability, so convert back to H here
+        H = y[0] * self.CO.Risco
         Wrphi = self.torque(R)
         w = self.CO.omega(R)
         dWrphi = self.torque_derivative(R)
@@ -41,11 +39,8 @@ class ConservativeDisk(AdvectiveDisk):
     def bc(self, ya, yb):
         # ya is at the 0 boundary
         # yb at the -1 boundary
-        return np.array(
-            [
-                yb[0] - self.Hout / self.CO.Risco,  # H at the outer boundary is Hout
-            ]
-        )
+        res = ya[0] - self.Hout / self.CO.Risco  # H at the inner boundary is Hout
+        return np.array([res])
 
     def solve(self, **kwargs):
         R0 = self.CO.Risco
@@ -88,7 +83,7 @@ class ConservativeAdvectiveDisk(CompositeDisk):
 
     def __init__(
         self,
-        innerDiskClass=ConservativeDisk,
+        innerDiskClass=ConservativeAdvectiveInnerDisk,
         outerDiskClass=ShakuraSunyaevDisk,
         *args,
         name="ConservativeAdvectiveDisk",
@@ -111,7 +106,8 @@ class ConservativeAdvectiveDisk(CompositeDisk):
         reltol=1e-4,
         **kwargs,
     ):
-        """Calculate the spherization radius based on the radiative flux.
+        """Finds the radius at which the outer disk luminosity equals the Eddington luminosity,
+          which defines the spherization radius Rsph.
 
         Parameters
         ----------
@@ -122,12 +118,10 @@ class ConservativeAdvectiveDisk(CompositeDisk):
 
         Returns
         -------
-        float or None
-            The calculated spherization radius or None if not found.
-        innerDisk: InnerDisk
-            The solved inner disk object whithin Rsph
-        outerDisk: ShakuraSunyaevDisk
-            The solved outer disk object, which is a SS73 disk with modified boundary conditions.
+        Rsph: float
+            The calculated spherization radius
+        Hrsph: float
+            The height of the disk at the spherization radius
         """
         outerDisk = self.outerDiskClass(
             self.CO,
