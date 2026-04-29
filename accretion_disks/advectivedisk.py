@@ -39,7 +39,7 @@ class ConservativeAdvectiveInnerDisk(AdvectiveDisk):
     def bc(self, ya, yb):
         # ya is at the 0 boundary
         # yb at the -1 boundary
-        res = ya[0] - self.Hout / self.CO.Risco  # H at the inner boundary is Hout
+        res = yb[0] - self.Hout / self.CO.Risco  # H at the inner boundary is Hout
         return np.array([res])
 
     def solve(self, **kwargs):
@@ -118,6 +118,8 @@ class ConservativeAdvectiveDisk(CompositeDisk):
 
         Returns
         -------
+        idx: int
+            The index of the radius closest to the spherization radius on the grid.
         Rsph: float
             The calculated spherization radius
         Hrsph: float
@@ -160,11 +162,11 @@ class ConservativeAdvectiveDisk(CompositeDisk):
         # Choose Rsph on the original grid, using the radius whose integrated
         # outer luminosity is closest to LEdd.
         idx = np.abs(residual).argmin()
-        return R[idx], outerDisk.H[idx]
+        return idx, R[idx], outerDisk.H[idx]
 
     def solve(self, **kwargs):
 
-        Rsph, Hout = self.find_Rsph(**kwargs)
+        Rsphidx, Rsph, Hout = self.find_Rsph(**kwargs)
         Rsphidx = Rsph / self.CO.Risco
 
         Ninner = np.count_nonzero(self.R <= Rsph)
