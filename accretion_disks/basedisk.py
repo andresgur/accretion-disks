@@ -289,9 +289,11 @@ class AdvectiveDisk(Disk):
         factor = 9 * dH - H * dWrphi / Wrphi - 12 * H / self.R
         return Mdot * w**2 * H / (4 * np.pi * self.R) * factor
 
-    def height_derivative(self, Mdot, H, Wrphi, dWrphi, R):
+    def Hprime_simplified(self, Mdot, H, R, Wrphi, dWrphi, w):
         """Derivative of the height of the disk. Everything in cgs units. Here rho has been replaced and
         the equations have been greatly simplified (mostly for speed purposes)
+        This is Equation 42 from the pdf
+        Tested
         Parameters
         ----------
         Mdot: float,
@@ -305,14 +307,12 @@ class AdvectiveDisk(Disk):
         w: float
             Keplerian angular velocity
         """
-        # Here we need to keep the omega(R) explicit as the R grid changes during the solver
-        omega = self.CO.omega(R)
         return (
             1
-            / 9.0
+            / 9
             * (
-                12.0 * H / R
-                - 3 * np.pi * R * Wrphi / (omega * H * Mdot)
+                +12 * H / R
+                - 3 * np.pi * R * Wrphi / (w * H * Mdot)
                 + H * dWrphi / Wrphi
                 - 4 * R * np.pi * ccgs / (Mdot * k_T)
             )
@@ -357,34 +357,6 @@ class AdvectiveDisk(Disk):
             - 4 * np.pi * self.R * ccgs * rho / (Mdot * k_T)
         )
         return numerator / denominator
-
-    def Hprime_simplified(self, Mdot, H, R, Wrphi, dWrphi, w):
-        """Derivative of the height of the disk. Everything in cgs units. Here rho has been replaced and
-        the equations have been greatly simplified (mostly for speed purposes)
-        This is Equation 42 from the pdf
-        Parameters
-        ----------
-        Mdot: float,
-            Mass-accretion rate at the given radius
-        H: float,
-            Height of the disk
-        Wrphi: float
-            Stress tensor in the radial and phi coordinates
-        dWrphi: float
-            Derivative of the stress tensor
-        w: float
-            Keplerian angular velocity
-        """
-        return (
-            1
-            / 9
-            * (
-                12 * H / R
-                - 3 * np.pi * R * Wrphi / (w * H * Mdot)
-                + H * dWrphi / Wrphi
-                + 4 * R * np.pi * ccgs / (Mdot * k_T)
-            )
-        )
 
     def height_derivative2(self, Mdot, H, Wrphi, R):
         omega = self.CO.omega(R)
