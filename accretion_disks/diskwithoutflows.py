@@ -1,10 +1,10 @@
-from .basedisk import NonAdvectiveDisk
+from .basedisk import CompositeDisk, NonAdvectiveDisk
 from math import pi
 from scipy.integrate import solve_bvp
 import numpy as np
 
 
-class InnerDisk(NonAdvectiveDisk):
+class NonConservativeInnerDisk(NonAdvectiveDisk):
     def __init__(self, *args, name="Inner Disk With Outflows", ewind=1, **kwargs):
         super().__init__(*args, name=name, **kwargs)
         self.ewind = ewind
@@ -70,7 +70,7 @@ class InnerDisk(NonAdvectiveDisk):
         self.T = self.temperature(self.P)
 
 
-class InnerDiskODE(NonAdvectiveDisk):
+class NonConservativeInnerDiskODE(NonAdvectiveDisk):
     def __init__(self, *args, name="Inner Disk With Outflows", ewind=1, **kwargs):
         super().__init__(*args, name=name, **kwargs)
         self.ewind = ewind
@@ -145,7 +145,6 @@ class InnerDiskODE(NonAdvectiveDisk):
 
         initial_guess = np.array([Mdot_guess, Wrphi_guess])
 
-        # Solve BVP with parameter [Rsph]
         output = solve_bvp(self.ode, self.bc, self.R, initial_guess, **kwargs)
 
         # Extract solution
@@ -159,3 +158,130 @@ class InnerDiskODE(NonAdvectiveDisk):
         self.vr = self.v_r(self.Mdot, self.H, self.rho, self.R)
         self.P = self.pressure(self.H, self.rho)
         self.T = self.temperature(self.P)
+
+
+class NonConservativeDisk(CompositeDisk):
+    def __init__(
+        self,
+        innerDiskClass=NonConservativeInnerDiskODE,
+        *args,
+        name="Disk With Outflows",
+        ewind=1,
+        **kwargs,
+    ):
+        super().__init__(
+            innerDiskClass,
+            *args,
+            name=name,
+            ewind=ewind,
+            **kwargs,
+        )
+        self.ewind = ewind
+
+    def find_Rsph(
+        self,
+        maxiter=100,
+        reltol=1e-4,
+        **kwargs,
+    ):
+        """Calculate the spherization radius based on the radiative flux.
+
+        Parameters
+        ----------
+        maxiter: int, optional
+            Maximum number of iterations for the solver.
+        reltol: float, optional
+            Relative tolerance for convergence.
+
+        Returns
+        -------
+        float or None
+            The calculated spherization radius or None if not found.
+        innerDisk: InnerDisk
+            The solved inner disk object whithin Rsph
+        outerDisk: ShakuraSunyaevDisk
+            The solved outer disk object, which is a SS73 disk with modified boundary conditions.
+        """
+        Ra = self.R[0] // self.CO.Risco
+        Rb = self.R[-1] // self.CO.Risco
+
+        outerDisk = self.outerDiskClass(
+            self.CO,
+            self.mdot,
+            self.alpha,
+            Rmax=self.Rmax,
+            Rmin=self.Rmin,
+            N=self.N,
+            name="Outer Disk",
+        )
+        outerDisk.solve()
+        L_Ra = outerDisk.L() - self.CO.LEdd
+        if L_Ra < 0:
+            raise ValueError(
+                "Outer disk is either too short (and Rsph extends beyond Rmax) or there are too few datapoints!"
+                + "Increase the number of datapoints or the maximum radius of the calculation!"
+            )
+        L_Rb = -self.CO.LEdd
+        side = 0
+
+        # secant method does not really converge! Let's use the regula falsi, which is bracketed
+        for i in range(maxiter):
+            R_c = (L_Ra * Rb - L_Rb * Ra) / (L_Ra - L_Rb)
+
+            Ninner = np.count_nonzero(self.R <= R_c * self.CO.Risco)
+            # reset the maximum radius
+            # set also the scale hight in the outer radis to that of the value of the inner radius
+            innerDisk = self.innerDiskClass(
+                self.CO,
+                self.mdot,
+                self.alpha,
+                Rmin=self.Rmin,
+                Rmax=R_c,
+                N=Ninner,
+                name="Inner Disk",
+                Wrphi_in=self.Wrphi_in,
+            )
+            innerDisk.solve(**kwargs)
+            Nouter = self.N - Ninner
+            if Nouter == 0:
+                raise ValueError(
+                    "Run out of points in Rsph calculation. Increase the number of grid points!"
+                )
+            # create truncated SS73 with new Wrphi boundary condition
+            outerDisk = self.outerDiskClass(
+                self.CO,
+                self.mdot,
+                self.alpha,
+                Rmin=R_c,
+                Rmax=self.Rmax,
+                N=Nouter,
+                name="Outer Disk",
+                Wrphi_in=innerDisk.Wrphi[-1],
+            )
+            outerDisk.solve()
+            L_Rc = outerDisk.L() - self.CO.LEdd
+            err = abs(Rb - Ra)
+            if err / R_c < reltol or L_Rc == 0:
+                return R_c, innerDisk, outerDisk
+            if (L_Rc * L_Ra) < 0:
+                Rb = R_c
+                L_Rb = L_Rc
+                # a is always positive side
+                if side == 1:
+                    L_Ra /= 2
+                side = 1
+            else:
+                Ra = R_c
+                L_Ra = L_Rc
+                # b is always negative side
+                if side == -1:
+                    L_Rb /= 2
+                side = -1
+        raise ValueError(
+            "Spherization radius not found within the specified parameters."
+        )
+
+    def solve(self, **kwargs):
+        Rsph, self.innerDisk, self.outerDisk = self.find_Rsph(**kwargs)
+        self.Rsph = Rsph * self.CO.Risco
+        super().solve(**kwargs)
