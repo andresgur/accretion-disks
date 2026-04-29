@@ -280,10 +280,14 @@ class AdvectiveDisk(Disk):
     def __init__(self, *args, name="AdvectiveDisk", **kwargs):
         super().__init__(*args, name=name, **kwargs)
 
-    def Q_adv(self, Mdot, H, dH, rho, drho):
+    def Q_adv(self, Mdot, H, dH, Wrphi, dWrphi):
+        """
+        Equation 36 from the pdf, derived from the definition of Qadv after replacing
+        the density and pressure from the alpha prescription and hydrostatic equilibrium, and replacing the derivative of the density with the derivative of the height and the derivative of the torque.
+        """
         w = self.Omega
-        factor = 6 * dH * rho - H * drho - 9 * H * rho / self.R
-        return Mdot * w**2 * H / (4 * np.pi * self.R * rho) * factor
+        factor = 9 * dH - H * dWrphi / Wrphi - 12 * H / self.R
+        return Mdot * w**2 * H / (4 * np.pi * self.R) * factor
 
     def height_derivative(self, Mdot, H, Wrphi, dWrphi, R):
         """Derivative of the height of the disk. Everything in cgs units. Here rho has been replaced and
