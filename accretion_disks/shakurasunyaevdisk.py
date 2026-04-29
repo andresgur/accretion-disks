@@ -12,7 +12,7 @@ class ShakuraSunyaevDisk(NonAdvectiveDisk):
 
     def torque(self, R):
         """Analytical expression for the torque when Mass loss is conserved"""
-        Rmin = self.CO.Risco
+        Rmin = self.CO.Risco * self.Rmin
         return -(
             self.Mdot_0 * self.CO.omega(R) / (2.0 * pi) * (1 - (Rmin / R) ** 0.5)
             - self.Wrphi_in * (Rmin / R) ** 2.0
