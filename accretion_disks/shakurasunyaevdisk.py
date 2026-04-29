@@ -20,7 +20,7 @@ class ShakuraSunyaevDisk(NonAdvectiveDisk):
 
     def torque_derivative(self, R):
         """Derivative of the Torque"""
-        Rmin = self.CO.Risco
+        Rmin = self.CO.Risco * self.Rmin
         return -(
             self.Mdot_0 * self.CO.omega(R) / (4 * pi * R) * (4 * (Rmin / R) ** 0.5 - 3)
             + 2.0 * self.Wrphi_in * (Rmin) ** 2 / (R**3)
