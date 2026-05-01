@@ -63,7 +63,7 @@ print(f"Total disk luminosity {disk.L() / co.LEdd:.2f} LEdd")
 
 
     
-![png](examples_files/examples_4_1.png)
+![png](docs/examples_files/examples_4_1.png)
     
 
 
@@ -91,7 +91,7 @@ plt.ylabel(r"$L/L_\mathrm{LEdd}$")
 
 
     
-![png](examples_files/examples_6_1.png)
+![png](docs/examples_files/examples_6_1.png)
     
 
 
@@ -130,7 +130,7 @@ np.testing.assert_almost_equal(disk.L(Rmin=disk.Rsph) / co.LEdd, 1, decimal=1)
 
 
     
-![png](examples_files/examples_9_2.png)
+![png](docs/examples_files/examples_9_2.png)
     
 
 
@@ -172,13 +172,13 @@ np.testing.assert_allclose(Rsphs / disk.CO.Risco / mdots, lipunovaRsph, rtol=1e-
 
 
     
-![png](examples_files/examples_11_0.png)
+![png](docs/examples_files/examples_11_0.png)
     
 
 
 
     
-![png](examples_files/examples_11_1.png)
+![png](docs/examples_files/examples_11_1.png)
     
 
 
@@ -214,7 +214,7 @@ np.testing.assert_almost_equal(disk.L(Rmin=disk.Rsph) / co.LEdd, 1, decimal=1)
 
 
     
-![png](examples_files/examples_14_1.png)
+![png](docs/examples_files/examples_14_1.png)
     
 
 
@@ -252,17 +252,12 @@ plt.ylabel(r"$R_\mathrm{sph}/R_\mathrm{ISCO}$")
 
 
     
-![png](examples_files/examples_15_1.png)
+![png](docs/examples_files/examples_15_1.png)
     
 
 
 
     
-![png](examples_files/examples_15_2.png)
+![png](docs/examples_files/examples_15_2.png)
     
 
-
-
-```python
-
-```
