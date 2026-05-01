@@ -27,12 +27,11 @@ pip install .
 
 ## Usage
 See the notebook in docs/examples.ipynb
-
 ```python
 from accretion_disks.shakurasunyaevdisk import ShakuraSunyaevDisk
-from accretion_disks.diskwithoutflows import InnerDisk
-from accretion_disks.basedisk import CompositeDisk
+from accretion_disks.diskwithoutflows import NonConservativeDisk, NonConservativeInnerDisk
 from accretion_disks.compact_object import CompactObject
+from accretion_disks.advectivedisk import ConservativeAdvectiveInnerDisk, ConservativeAdvectiveDisk
 import numpy as np
 import matplotlib.pyplot as plt
 ```
@@ -49,6 +48,7 @@ co = CompactObject(10, a=0.5)
 
 ```python
 disk = ShakuraSunyaevDisk(co, mdot=0.5, alpha=0.1, Wrphi_in=-0.1, N=100000)
+disk.solve()
 fig, axes = disk.plot()
 
 maxQ = np.argmax(disk.Qrad * disk.R**2)
@@ -63,7 +63,7 @@ print(f"Total disk luminosity {disk.L() / co.LEdd:.2f} LEdd")
 
 
     
-![png](docs/examples_files/examples_4_1.png)
+![png](examples_files/examples_4_1.png)
     
 
 
@@ -91,17 +91,19 @@ plt.ylabel(r"$L/L_\mathrm{LEdd}$")
 
 
     
-![png](docs/examples_files/examples_6_1.png)
+![png](examples_files/examples_6_1.png)
     
 
 
-## Disk with Outflows from Lipunva 1999 (inner disk has mass loss, outer disk is modified SS733)
+## Nonconservative, nonadvective disk from Lipunova 1999 (inner disk has mass loss, outer disk is modified SS733)
 
 Rsph is defined as R such that L(R>Rsph) = LEdd
 
 
 ```python
-disk = CompositeDisk(InnerDisk, ShakuraSunyaevDisk, CO=co, mdot=1000, alpha=0.1)
+disk = NonConservativeDisk(NonConservativeInnerDisk, ShakuraSunyaevDisk, CO=co, mdot=1000, 
+                        alpha=0.1)
+disk.solve()
 fig, axes = disk.plot()
 print(f"Rsph = {disk.Rsph / disk.CO.Risco:.1f} x mdot")
 
@@ -113,14 +115,22 @@ print(f"Total disk luminosity {disk.L() / co.LEdd:.2f} LEdd")
 np.testing.assert_almost_equal(disk.L(Rmin=disk.Rsph) / co.LEdd, 1, decimal=1)
 ```
 
-    Rsph = 1620.0 x mdot
+    /home/andresgur/code/pythonscripts/accretion-disks/accretion-disks/accretion_disks/basedisk.py:129: RuntimeWarning: invalid value encountered in divide
+      return -Wrphi / (2 * self.alpha * self.Omega**2.0 * H**3.0)
+    /home/andresgur/code/pythonscripts/accretion-disks/accretion-disks/accretion_disks/basedisk.py:239: RuntimeWarning: invalid value encountered in divide
+      r, self.Qrad / self.Qvis, label=r"$Q_\mathrm{rad}/ Q_\mathrm{vis}$"
+    /home/andresgur/code/pythonscripts/accretion-disks/accretion-disks/accretion_disks/basedisk.py:242: RuntimeWarning: invalid value encountered in divide
+      r, self.Qadv / self.Qvis, label=r"$Q_\mathrm{adv}/ Q_\mathrm{vis}$", ls="--"
+
+
+    Rsph = 1620.1 x mdot
     Maximum energy released occurs at 1620.5 with H/R = 0.62
     Total disk luminosity 5.31 LEdd
 
 
 
     
-![png](docs/examples_files/examples_9_1.png)
+![png](examples_files/examples_9_2.png)
     
 
 
@@ -136,7 +146,7 @@ def poutanen(mdot):
 
 ```python
 # Disk luminosity is \propto ln \mdot
-# The dependency quoted by Lipunva (which is approximate) is shown by comparison
+# The dependency quoted by Lipunova (which is approximate) is shown by comparison
 mdots = np.arange(100, 1000, 10)
 lums = np.empty(len(mdots), dtype=float)
 Rsphs = np.empty(len(mdots), dtype=float)
@@ -162,10 +172,97 @@ np.testing.assert_allclose(Rsphs / disk.CO.Risco / mdots, lipunovaRsph, rtol=1e-
 
 
     
-![png](docs/examples_files/examples_11_0.png)
+![png](examples_files/examples_11_0.png)
     
 
 
 
     
-![png](docs/examples_files/examples_11_1.png)
+![png](examples_files/examples_11_1.png)
+    
+
+
+## Conservative Advective Disk (Inner disk has advection, outer is standard SS733)
+
+Rsph is defined as R such that L(R>Rsph) = LEdd
+
+
+```python
+disk = ConservativeAdvectiveDisk(ConservativeAdvectiveInnerDisk, ShakuraSunyaevDisk, CO=co, 
+                                 mdot=1000,
+                        alpha=0.1, Rmin=1.01)
+disk.solve()
+disk.plot()
+
+print(f"Rsph = {disk.Rsph / disk.CO.Risco:.0f} x mdot")
+
+maxQ = np.argmax(disk.Qrad * disk.R**2)
+print("Maximum energy released occurs at", f"{disk.R[maxQ] / disk.CO.Risco:.1f}", f"with H/R = {disk.H[maxQ]/disk.R[maxQ]:.2f}")
+
+print(f"Total disk luminosity {disk.L() / co.LEdd:.2f} LEdd")
+print(disk.Rsph / disk.CO.Risco)
+# if we integrate the disk up to Rsph we find it is equal to LEdd, as expected
+np.testing.assert_almost_equal(disk.L(Rmin=disk.Rsph) / co.LEdd, 1, decimal=1)
+
+```
+
+    Rsph = 2874 x mdot
+    Maximum energy released occurs at 2875.8 with H/R = 1.02
+    Total disk luminosity 6.02 LEdd
+    2874.129188275181
+
+
+
+    
+![png](examples_files/examples_14_1.png)
+    
+
+
+
+```python
+# Disk luminosity is \propto ln \mdot
+# The dependency quoted by Lipunova (which is approximate) is shown by comparison
+mdots = np.arange(100, 1000, 10)
+lums = np.empty(len(mdots), dtype=float)
+Rsphs = np.empty(len(mdots), dtype=float)
+for i, mdot in enumerate(mdots):
+    disk.mdot = mdot
+    lums[i] = disk.L()
+    Rsphs[i] = disk.Rsph
+plt.plot(mdots, lums / disk.CO.LEdd, color="black", label="Exact")
+plt.xlabel(r"$\dot{m}$")  
+plt.plot(mdots, lipunova(mdots), label="Lipunova 1999")
+plt.plot(mdots, poutanen(mdots), label="Poutanen+2007")
+plt.ylabel(r"$L/L_\mathrm{LEdd}$")
+plt.legend()
+
+
+plt.figure()
+plt.plot(mdots, Rsphs / disk.CO.Risco)
+plt.xlabel(r"$\dot{m}$")  
+plt.ylabel(r"$R_\mathrm{sph}/R_\mathrm{ISCO}$")
+```
+
+
+
+
+    Text(0, 0.5, '$R_\\mathrm{sph}/R_\\mathrm{ISCO}$')
+
+
+
+
+    
+![png](examples_files/examples_15_1.png)
+    
+
+
+
+    
+![png](examples_files/examples_15_2.png)
+    
+
+
+
+```python
+
+```
